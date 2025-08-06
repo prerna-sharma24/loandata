@@ -87,3 +87,4 @@ with st.form("loan_form"):
             st.success("✅ Loan is likely to be Approved!")
         else:
             st.error("❌ Loan is likely to be Rejected.")
+
