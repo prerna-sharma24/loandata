@@ -15,7 +15,7 @@ st.markdown(
     <style>
     /* full app background (subtle bokeh/blurred) */
     .stApp {
-        background-image: url("https://images.pexels.com/photos/373543/pexels-photo-373543.jpeg");
+        background-image: url("https://images.pexels.com/photos/956999/milky-way-starry-sky-night-sky-star-956999.jpeg");
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
@@ -213,3 +213,4 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
