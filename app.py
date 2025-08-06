@@ -155,7 +155,7 @@ else:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------ Prediction & PDF generation ------------------
-st.markdown("<div style='height:8px'></div>")
+
 predict_col, _ = st.columns([1,3])
 
 with predict_col:
@@ -211,4 +211,5 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
 
