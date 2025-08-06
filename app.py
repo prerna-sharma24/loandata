@@ -1,90 +1,64 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import joblib
+import numpy as np
+import joblib  # or pickle
 
-# ===== Load Data and Models =====
-df = pd.read_csv("loan_data.csv")
+# Load the trained model
+model = joblib.load('model.pkl')  # make sure this is the correct filename
+scaler=joblib.load('scaler.pkl')
+# Title
+st.title("Loan Prediction App")
 
-# Load your trained model and scaler
-model = joblib.load("model.pkl")
-scaler = joblib.load("scaler.pkl")
+# Sidebar inputs
+st.sidebar.header("Applicant Information")
 
-# ===== Dashboard Title =====
-st.title("📊 Loan Approval Dashboard")
+gender = st.sidebar.selectbox("Gender", ["Male", "Female"])
+married = st.sidebar.selectbox("Married", ["Yes", "No"])
+dependents = st.sidebar.selectbox("Dependents", ["0", "1", "2", "3+"])
+education = st.sidebar.selectbox("Education", ["Graduate", "Not Graduate"])
+self_employed = st.sidebar.selectbox("Self Employed", ["Yes", "No"])
+applicant_income = st.sidebar.number_input("Applicant Income", min_value=0)
+coapplicant_income = st.sidebar.number_input("Coapplicant Income", min_value=0)
+loan_amount = st.sidebar.number_input("Loan Amount", min_value=0)
+loan_term = st.sidebar.selectbox("Loan Term (months)", [360, 180, 120, 60])
+credit_history = st.sidebar.selectbox("Credit History", [1.0, 0.0])
+property_area = st.sidebar.selectbox("Property Area", ["Urban", "Rural", "Semiurban"])
 
-# ===== Top Summary Metrics =====
-total_loans = len(df)
-approved_loans = df[df["Loan_Status"] == "Y"].shape[0]
-rejected_loans = df[df["Loan_Status"] == "N"].shape[0]
+# Convert to DataFrame for prediction
+input_data = pd.DataFrame({
+    'Gender': [gender],
+    'Married': [married],
+    'Dependents': [dependents],
+    'Education': [education],
+    'Self_Employed': [self_employed],
+    'ApplicantIncome': [applicant_income],
+    'CoapplicantIncome': [coapplicant_income],
+    'LoanAmount': [loan_amount],
+    'Loan_Amount_Term': [loan_term],
+    'Credit_History': [credit_history],
+    'Property_Area': [property_area]
+})
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Loans", total_loans)
-col2.metric("Approved Loans", approved_loans)
-col3.metric("Rejected Loans", rejected_loans)
+# Preprocessing should match the training preprocessing
+# You must apply the same label encoding / one-hot encoding etc. here
+# Example:
+def preprocess(df):
+    df = df.copy()
+    df['Gender'] = df['Gender'].map({'Male': 1, 'Female': 0})
+    df['Married'] = df['Married'].map({'Yes': 1, 'No': 0})
+    df['Education'] = df['Education'].map({'Graduate': 1, 'Not Graduate': 0})
+    df['Self_Employed'] = df['Self_Employed'].map({'Yes': 1, 'No': 0})
+    df['Property_Area'] = df['Property_Area'].map({'Urban': 2, 'Semiurban': 1, 'Rural': 0})
+    df['Dependents'] = df['Dependents'].replace('3+', 3).astype(int)
+    return df
 
-st.markdown("---")
+input_processed = preprocess(input_data)
 
-# ===== Pie Chart =====
-st.subheader("Loan Status Distribution")
-status_counts = df["Loan_Status"].value_counts()
+# Predict button
+if st.button("Predict Loan Approval"):
+    prediction = model.predict(input_processed)[0]
+    if prediction == 'Y':
+        st.success("✅ Loan will be Approved!")
+    else:
 
-fig, ax = plt.subplots()
-ax.pie(
-    status_counts,
-    labels=status_counts.index.map({"Y": "Approved", "N": "Rejected"}),
-    autopct="%1.1f%%",
-    colors=["#4CAF50", "#F44336"],
-    startangle=90,
-)
-ax.axis("equal")
-st.pyplot(fig)
-
-# ===== Display Sample Data Table =====
-st.subheader("📋 Sample Loan Data")
-st.dataframe(df.head(10))
-
-# ===== Filter by Property Area =====
-st.subheader("🔍 Filter by Property Area")
-area = st.selectbox("Select Area", df["Property_Area"].unique())
-filtered_df = df[df["Property_Area"] == area]
-st.write(f"Showing {len(filtered_df)} records from '{area}' area:")
-st.dataframe(filtered_df)
-
-# ===== Loan Approval Prediction =====
-st.markdown("---")
-st.subheader("🧠 Predict Loan Approval")
-
-with st.form("loan_form"):
-    st.write("### Enter Applicant Details")
-
-    applicant_income = st.number_input("Applicant Income", min_value=0, value=5000)
-    coapplicant_income = st.number_input("Coapplicant Income", min_value=0, value=0)
-    loan_amount = st.number_input("Loan Amount", min_value=1, value=100)
-    loan_term = st.number_input("Loan Term (in days)", min_value=30, value=360)
-    credit_history = st.selectbox("Credit History", options=[1, 0], format_func=lambda x: "Good (1)" if x == 1 else "Bad (0)")
-
-    submitted = st.form_submit_button("Predict Loan Approval")
-
-    if submitted:
-        # Step 1: Prepare raw input
-        raw_input = [[
-            applicant_income,
-            coapplicant_income,
-            loan_amount,
-            loan_term,
-            credit_history
-        ]]
-
-        # Step 2: Scale input
-        scaled_input = scaler.transform(raw_input)
-
-        # Step 3: Predict
-        prediction = model.predict(scaled_input)
-
-        # Step 4: Display result
-        if prediction[0] == 'Y' or prediction[0] == 1:
-            st.success("✅ Loan is likely to be Approved!")
-        else:
-            st.error("❌ Loan is likely to be Rejected.")
-update this code without load the dataset
+        st.error("❌ Loan will be Rejected.")
