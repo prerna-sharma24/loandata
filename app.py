@@ -1,3 +1,4 @@
+# app.py
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -13,16 +14,14 @@ st.set_page_config(page_title="Loan Prediction App", layout="wide")
 st.markdown(
     """
     <style>
-    /* full app background (subtle bokeh/blurred) */
     .stApp {
-        background-image: url("https://images.pexels.com/photos/956999/milky-way-starry-sky-night-sky-star-956999.jpeg");
+        background-image: url("https://images.pexels.com/photos/373543/pexels-photo-373543.jpeg");
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
         background-position: center;
     }
 
-    /* translucent panels to ensure text readability */
     .panel {
         background: rgba(0,0,0,0.45);
         color: white;
@@ -32,7 +31,7 @@ st.markdown(
     }
 
     .panel-light {
-        background: rgba(255,255,255,0.85);
+        background: rgba(255,255,255,0.92);
         color: #111;
         padding: 14px;
         border-radius: 12px;
@@ -49,11 +48,10 @@ st.markdown(
         margin-bottom: 10px;
     }
 
-    /* ensure Streamlit table rows text is readable */
+    /* Ensure Streamlit dataframes readable on light panels */
     .stDataFrame table {
         color: #111 !important;
     }
-
     </style>
     """,
     unsafe_allow_html=True,
@@ -62,12 +60,12 @@ st.markdown(
 # Title
 st.markdown('<div class="title-card"><h2 style="margin:0">🏦 Loan Prediction App</h2></div>', unsafe_allow_html=True)
 
-# ------------------ Load model (safe) ------------------
+# ------------------ Load model (optional) ------------------
 try:
     model = joblib.load("model.pkl")
 except Exception:
     model = None
-    st.warning("Model not found (model.pkl). Prediction will fail until you add the model file.")
+    st.warning("Model (model.pkl) not found. Prediction will fail until model file is present.")
 
 # ------------------ Sidebar inputs ------------------
 st.sidebar.header("📝 Applicant Information")
@@ -109,18 +107,17 @@ def preprocess(df):
 
 input_processed = preprocess(input_data)
 
-# ------------------ Layout (visual first, then data preview) ------------------
+# ------------------ Visualization then Data Preview ------------------
 st.markdown("<div class='panel'><h3 style='margin:6px 0'>📊 Applicant Financial Summary</h3></div>", unsafe_allow_html=True)
 show_vis = st.checkbox("Show visualization for current input", value=True)
 
 if show_vis:
-    # Create the bar chart
+    # Bar chart
     fig, ax = plt.subplots(figsize=(7,4))
     bars = ax.bar(
         ['Applicant Income', 'Coapplicant Income', 'Loan Amount'],
         [applicant_income, coapplicant_income, loan_amount]
     )
-    # Add labels and title with readable style
     for bar in bars:
         yval = bar.get_height()
         ax.text(bar.get_x() + bar.get_width()/2.0, yval + max(1, yval*0.02), f'{yval:.2f}', ha='center', va='bottom', fontsize=9)
@@ -129,18 +126,17 @@ if show_vis:
     ax.grid(axis='y', linestyle=':', linewidth=0.6, alpha=0.7)
     st.pyplot(fig)
 
-    # KPI row (better visibility with white panel)
+    # KPI row (white panels for readability)
     total_income = applicant_income + coapplicant_income
     k1, k2, k3 = st.columns(3)
     k1.markdown('<div class="panel-light"><h4 style="margin:4px">Applicant Income</h4><h3 style="margin:4px">{:.2f}</h3></div>'.format(applicant_income), unsafe_allow_html=True)
     k2.markdown('<div class="panel-light"><h4 style="margin:4px">Coapplicant Income</h4><h3 style="margin:4px">{:.2f}</h3></div>'.format(coapplicant_income), unsafe_allow_html=True)
     k3.markdown('<div class="panel-light"><h4 style="margin:4px">Total Income</h4><h3 style="margin:4px">{:.2f}</h3></div>'.format(total_income), unsafe_allow_html=True)
 
-    # After visualization, show entered data preview and CSV download
+    # Entered Data Preview and CSV download (shown after the visual)
     st.markdown("<div style='height:12px'></div>")
     st.markdown("<div class='panel-light'><h4 style='margin:6px 0'>🧾 Entered Data Preview</h4>", unsafe_allow_html=True)
     st.dataframe(input_data, use_container_width=True)
-    # CSV download
     csv_buf = BytesIO()
     input_data.to_csv(csv_buf, index=False)
     csv_buf.seek(0)
@@ -151,15 +147,17 @@ if show_vis:
         mime="text/csv"
     )
     st.markdown("</div>", unsafe_allow_html=True)
+
 else:
-    # If viz not shown, still show a compact data preview in a small panel
+    # Compact preview when visualization is hidden
     st.markdown("<div class='panel-light'><h4 style='margin:6px 0'>🧾 Entered Data Preview</h4>", unsafe_allow_html=True)
     st.dataframe(input_data, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ------------------ Prediction & PDF generation ------------------
 st.markdown("<div style='height:8px'></div>")
-predict_col, empty = st.columns([1,3])
+predict_col, _ = st.columns([1,3])
+
 with predict_col:
     if st.button("🔍 Predict Loan Approval"):
         if model is None:
@@ -178,7 +176,7 @@ with predict_col:
                 else:
                     st.error("❌ Loan will be Rejected.")
 
-                # Generate PDF using fpdf
+                # ----- PDF generation using fpdf (IN-MEMORY) -----
                 pdf = FPDF()
                 pdf.add_page()
                 pdf.set_font("Arial", size=14)
@@ -193,9 +191,9 @@ with predict_col:
                 pdf.set_font("Arial", size=9)
                 pdf.cell(0, 6, f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
 
-                pdf_buf = BytesIO()
-                pdf.output(pdf_buf)
-                pdf_buf.seek(0)
+                # --- Correct in-memory output for FPDF ---
+                pdf_bytes = pdf.output(dest='S').encode('latin1')  # returns PDF as bytes
+                pdf_buf = BytesIO(pdf_bytes)
 
                 st.download_button(
                     label="📄 Download Result as PDF",
@@ -204,7 +202,7 @@ with predict_col:
                     mime="application/pdf"
                 )
 
-# ------------------ small tip note ------------------
+# ------------------ Note/Tip ------------------
 st.markdown(
     """
     <div style="margin-top:12px; color: rgba(255,255,255,0.9)">
@@ -213,4 +211,3 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
-
