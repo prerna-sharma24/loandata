@@ -4,7 +4,7 @@ import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 from io import BytesIO
-from reportlab.pdfgen import canvas
+
 
 # 🎨 Inject custom CSS for background image
 st.markdown(
@@ -132,5 +132,6 @@ if st.button("🔍 Predict Loan Approval"):
         file_name="loan_prediction_report.pdf",
         mime="application/pdf"
     )
+
 
 
