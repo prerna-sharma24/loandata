@@ -1,55 +1,56 @@
-import joblib
-
 import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
+import joblib
+import numpy as np
 
-# Load
-df = pd.read_csv("loan.csv")
+# Load trained model
+model = joblib.load("model.pkl")
 
-model=joblib.load("model.pkl")
-scaler=joblib.load("scaler.pkl")
+# Optional: Load a preprocessor if used during training
+# preprocessor = joblib.load("preprocessor.pkl")
 
-# Title
-st.title("📊 Loan Approval Dashboard")
+st.title("🏦 Loan Eligibility Prediction App")
 
-# Top metrics
-total_loans = len(df)
-approved_loans = df[df["Loan_Status"] == "Y"].shape[0]
-rejected_loans = df[df["Loan_Status"] == "N"].shape[0]
+st.write("Enter applicant details below to check loan eligibility.")
 
-col1, col2, col3 = st.columns(3)
-col1.metric("Total Loans", total_loans)
-col2.metric("Approved", approved_loans)
-col3.metric("Rejected", rejected_loans)
+# Input form
+gender = st.selectbox("Gender", ["Male", "Female"])
+married = st.selectbox("Married", ["Yes", "No"])
+dependents = st.selectbox("Dependents", ["0", "1", "2", "3+"])
+education = st.selectbox("Education", ["Graduate", "Not Graduate"])
+self_employed = st.selectbox("Self Employed", ["Yes", "No"])
+applicant_income = st.number_input("Applicant Income", min_value=0)
+coapplicant_income = st.number_input("Coapplicant Income", min_value=0)
+loan_amount = st.number_input("Loan Amount", min_value=0)
+loan_amount_term = st.number_input("Loan Amount Term (in days)", min_value=0, value=360)
+credit_history = st.selectbox("Credit History", [1.0, 0.0])
+property_area = st.selectbox("Property Area", ["Urban", "Rural", "Semiurban"])
 
-st.markdown("---")
+# Preprocess input
+def preprocess_input():
+    return np.array([[
+        gender,
+        married,
+        dependents,
+        education,
+        self_employed,
+        applicant_income,
+        coapplicant_income,
+        loan_amount,
+        loan_amount_term,
+        credit_history,
+        property_area
+    ]], dtype=object)
 
-# Pie chart
-st.subheader("Loan Status Distribution")
-status_counts = df["Loan_Status"].value_counts()
+# Predict button
+if st.button("Predict Loan Status"):
+    input_data = preprocess_input()
 
-fig, ax = plt.subplots()
-ax.pie(
-    status_counts,
-    labels=status_counts.index.map({"Y": "Approved", "N": "Rejected"}),
-    autopct="%1.1f%%",
-    colors=["#4CAF50", "#F44336"],
-    startangle=90,
-)
-ax.axis("equal")
-st.pyplot(fig)
+    # If you used a preprocessor in training, apply it
+    # input_data = preprocessor.transform(input_data)
 
-# Show Data Table
-st.subheader("📋 Sample Loan Data")
-st.dataframe(df.head(10))
+    prediction = model.predict(input_data)
 
-# Optional: Filter
-st.subheader("🔍 Filter by Property Area")
-area = st.selectbox("Select Area", df["Property_Area"].unique())
-filtered_df = df[df["Property_Area"] == area]
-st.write(f"Showing {len(filtered_df)} records from '{area}' area:")
-st.dataframe(filtered_df)
-
-
-
+    if prediction[0] == "Y":
+        st.success("✅ Loan will likely be Approved!")
+    else:
+        st.error("❌ Loan will likely be Rejected.")
