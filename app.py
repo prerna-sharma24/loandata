@@ -134,7 +134,7 @@ if show_vis:
     k3.markdown('<div class="panel-light"><h4 style="margin:4px">Total Income</h4><h3 style="margin:4px">{:.2f}</h3></div>'.format(total_income), unsafe_allow_html=True)
 
     # Entered Data Preview and CSV download (shown after the visual)
-
+<br>
     st.markdown("<div class='panel-light'><h4 style='margin:6px 0'>🧾 Entered Data Preview</h4>", unsafe_allow_html=True)
     st.dataframe(input_data, use_container_width=True)
     csv_buf = BytesIO()
@@ -211,6 +211,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
 
 
 
