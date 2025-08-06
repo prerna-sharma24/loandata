@@ -4,77 +4,73 @@ import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 from io import BytesIO
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
-import base64
+from fpdf import FPDF
 import datetime
 
-# ===== Optional: increase layout width for nicer card visuals =====
 st.set_page_config(page_title="Loan Prediction App", layout="wide")
 
-# ===== Custom CSS: background image + bordered title card =====
+# ------------------ Styling & background ------------------
 st.markdown(
     """
     <style>
+    /* full app background (subtle bokeh/blurred) */
     .stApp {
-        background-image: url("https://images.pexels.com/photos/255379/pexels-photo-255379.jpeg");
+        background-image: url("https://images.pexels.com/photos/373543/pexels-photo-373543.jpeg");
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
         background-position: center;
     }
 
-    /* Title card with border and shadow */
-    .title-card {
-        border: 3px solid rgba(255,255,255,0.9);
-        background: rgba(0,0,0,0.35);
-        padding: 16px;
+    /* translucent panels to ensure text readability */
+    .panel {
+        background: rgba(0,0,0,0.45);
+        color: white;
+        padding: 14px;
         border-radius: 12px;
-        box-shadow: 0 6px 18px rgba(0,0,0,0.4);
-        color: #ffffff;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+    }
+
+    .panel-light {
+        background: rgba(255,255,255,0.85);
+        color: #111;
+        padding: 14px;
+        border-radius: 12px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+
+    .title-card {
+        border: 2px solid rgba(255,255,255,0.7);
+        padding: 12px 18px;
+        border-radius: 12px;
         display: inline-block;
+        background: rgba(0,0,0,0.35);
+        color: white;
         margin-bottom: 10px;
     }
 
-    .title-card h1 {
-        margin: 0;
-        padding: 0;
-        font-size: 30px;
+    /* ensure Streamlit table rows text is readable */
+    .stDataFrame table {
+        color: #111 !important;
     }
 
-    /* Make sidebar inputs slightly translucent for style */
-    .css-1d391kg { background-color: rgba(255,255,255,0.85); }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# ===== Bordered title (rendered as HTML so it has an outer border) =====
-st.markdown(
-    """
-    <div class="title-card">
-      <h1>🏦 Loan Prediction App</h1>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+# Title
+st.markdown('<div class="title-card"><h2 style="margin:0">🏦 Loan Prediction App</h2></div>', unsafe_allow_html=True)
 
-# Load model and scaler - ensure model.pkl and scaler.pkl exist in working dir
-# If these are heavy or not present, wrap in try/except and warn user.
+# ------------------ Load model (safe) ------------------
 try:
-    model = joblib.load('model.pkl')
-except Exception as e:
-    st.warning("Could not load model.pkl. Prediction will not work until model file is present.")
-    model = None
-
-try:
-    scaler = joblib.load('scaler.pkl')
+    model = joblib.load("model.pkl")
 except Exception:
-    scaler = None  # Not used in code below, but left for completeness
+    model = None
+    st.warning("Model not found (model.pkl). Prediction will fail until you add the model file.")
 
-# Sidebar inputs
+# ------------------ Sidebar inputs ------------------
 st.sidebar.header("📝 Applicant Information")
-
 gender = st.sidebar.selectbox("Gender", ["Male", "Female"])
 married = st.sidebar.selectbox("Married", ["Yes", "No"])
 dependents = st.sidebar.selectbox("Dependents", ["0", "1", "2", "3+"])
@@ -87,7 +83,6 @@ loan_term = st.sidebar.selectbox("Loan Term (months)", [360, 180, 120, 60])
 credit_history = st.sidebar.selectbox("Credit History", [1.0, 0.0])
 property_area = st.sidebar.selectbox("Property Area", ["Urban", "Rural", "Semiurban"])
 
-# Convert to DataFrame for prediction & for download
 input_data = pd.DataFrame({
     'Gender': [gender],
     'Married': [married],
@@ -102,7 +97,6 @@ input_data = pd.DataFrame({
     'Property_Area': [property_area]
 })
 
-# Preprocessing function
 def preprocess(df):
     df = df.copy()
     df['Gender'] = df['Gender'].map({'Male': 1, 'Female': 0})
@@ -111,133 +105,110 @@ def preprocess(df):
     df['Self_Employed'] = df['Self_Employed'].map({'Yes': 1, 'No': 0})
     df['Property_Area'] = df['Property_Area'].map({'Urban': 2, 'Semiurban': 1, 'Rural': 0})
     df['Dependents'] = df['Dependents'].replace('3+', 3).astype(int)
-    # If your model expects scaled values, apply scaler here (if you have it)
-    # if scaler is not None:
-    #     numeric_cols = ['ApplicantIncome','CoapplicantIncome','LoanAmount','Loan_Amount_Term']
-    #     df[numeric_cols] = scaler.transform(df[numeric_cols])
     return df
 
 input_processed = preprocess(input_data)
 
-# Layout: left column for visualization & result, right column for data preview & downloads
-col1, col2 = st.columns([2, 1])
+# ------------------ Layout (visual first, then data preview) ------------------
+st.markdown("<div class='panel'><h3 style='margin:6px 0'>📊 Applicant Financial Summary</h3></div>", unsafe_allow_html=True)
+show_vis = st.checkbox("Show visualization for current input", value=True)
 
-with col1:
-    st.subheader("📊 Applicant Financial Summary")
+if show_vis:
+    # Create the bar chart
+    fig, ax = plt.subplots(figsize=(7,4))
+    bars = ax.bar(
+        ['Applicant Income', 'Coapplicant Income', 'Loan Amount'],
+        [applicant_income, coapplicant_income, loan_amount]
+    )
+    # Add labels and title with readable style
+    for bar in bars:
+        yval = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width()/2.0, yval + max(1, yval*0.02), f'{yval:.2f}', ha='center', va='bottom', fontsize=9)
+    ax.set_ylabel("Amount")
+    ax.set_title("Income & Loan Overview")
+    ax.grid(axis='y', linestyle=':', linewidth=0.6, alpha=0.7)
+    st.pyplot(fig)
 
-    # Let user choose whether to show the visualization (so it shows after data entry)
-    if st.checkbox("Show visualization for current input"):
-        # Create bar chart
-        fig, ax = plt.subplots()
-        bars = ax.bar(
-            ['Applicant Income', 'Coapplicant Income', 'Loan Amount'],
-            [applicant_income, coapplicant_income, loan_amount]
-        )
+    # KPI row (better visibility with white panel)
+    total_income = applicant_income + coapplicant_income
+    k1, k2, k3 = st.columns(3)
+    k1.markdown('<div class="panel-light"><h4 style="margin:4px">Applicant Income</h4><h3 style="margin:4px">{:.2f}</h3></div>'.format(applicant_income), unsafe_allow_html=True)
+    k2.markdown('<div class="panel-light"><h4 style="margin:4px">Coapplicant Income</h4><h3 style="margin:4px">{:.2f}</h3></div>'.format(coapplicant_income), unsafe_allow_html=True)
+    k3.markdown('<div class="panel-light"><h4 style="margin:4px">Total Income</h4><h3 style="margin:4px">{:.2f}</h3></div>'.format(total_income), unsafe_allow_html=True)
 
-        # Add value labels
-        for bar in bars:
-            yval = bar.get_height()
-            ax.text(bar.get_x() + bar.get_width()/2.0, yval + max(1, yval*0.02),
-                    f'{yval:.2f}', ha='center', va='bottom')
-
-        ax.set_ylabel("Amount")
-        ax.set_title("Income & Loan Overview")
-        st.pyplot(fig)
-
-        # Also show a quick KPI strip
-        total_income = applicant_income + coapplicant_income
-        cols = st.columns(3)
-        cols[0].metric("Applicant Income", f"{applicant_income:.2f}")
-        cols[1].metric("Coapplicant Income", f"{coapplicant_income:.2f}")
-        cols[2].metric("Total Income", f"{total_income:.2f}")
-
-with col2:
-    st.subheader("🧾 Entered Data Preview")
+    # After visualization, show entered data preview and CSV download
+    st.markdown("<div style='height:12px'></div>")
+    st.markdown("<div class='panel-light'><h4 style='margin:6px 0'>🧾 Entered Data Preview</h4>", unsafe_allow_html=True)
     st.dataframe(input_data, use_container_width=True)
-
-    # Button to download entered data as CSV
-    csv_buffer = BytesIO()
-    input_data.to_csv(csv_buffer, index=False)
-    csv_buffer.seek(0)
-
+    # CSV download
+    csv_buf = BytesIO()
+    input_data.to_csv(csv_buf, index=False)
+    csv_buf.seek(0)
     st.download_button(
         label="⬇️ Download entered data (CSV)",
-        data=csv_buffer,
+        data=csv_buf,
         file_name=f"loan_input_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
         mime="text/csv"
     )
+    st.markdown("</div>", unsafe_allow_html=True)
+else:
+    # If viz not shown, still show a compact data preview in a small panel
+    st.markdown("<div class='panel-light'><h4 style='margin:6px 0'>🧾 Entered Data Preview</h4>", unsafe_allow_html=True)
+    st.dataframe(input_data, use_container_width=True)
+    st.markdown("</div>", unsafe_allow_html=True)
 
-# Predict button and result
-if st.button("🔍 Predict Loan Approval"):
-    if model is None:
-        st.error("Model is not loaded. Put model.pkl in the app directory.")
-    else:
-        # If your model expects a numpy array or scaled values, ensure format matches
-        try:
-            pred = model.predict(input_processed)[0]
-        except Exception as e:
-            st.error(f"Prediction failed: {e}")
-            pred = None
+# ------------------ Prediction & PDF generation ------------------
+st.markdown("<div style='height:8px'></div>")
+predict_col, empty = st.columns([1,3])
+with predict_col:
+    if st.button("🔍 Predict Loan Approval"):
+        if model is None:
+            st.error("Model is not loaded. Please add model.pkl to the app folder.")
+        else:
+            try:
+                pred = model.predict(input_processed)[0]
+            except Exception as e:
+                st.error(f"Prediction error: {e}")
+                pred = None
 
-        if pred is not None:
-            result_text = "✅ Loan will be Approved!" if pred == 'Y' or pred == 'Yes' or pred == 1 else "❌ Loan will be Rejected."
-            if pred == 'Y' or pred == 'Yes' or pred == 1:
-                st.success(result_text)
-            else:
-                st.error(result_text)
+            if pred is not None:
+                approved = (pred == 'Y' or pred == 'Yes' or pred == 1)
+                if approved:
+                    st.success("✅ Loan will be Approved!")
+                else:
+                    st.error("❌ Loan will be Rejected.")
 
-            # ----- PDF generation (reportlab) -----
-            buffer = BytesIO()
-            c = canvas.Canvas(buffer, pagesize=letter)
-            c.setFont("Helvetica-Bold", 14)
-            c.drawString(50, 760, "Loan Prediction Report")
-            c.setFont("Helvetica", 11)
-            c.line(50, 755, 550, 755)
+                # Generate PDF using fpdf
+                pdf = FPDF()
+                pdf.add_page()
+                pdf.set_font("Arial", size=14)
+                pdf.cell(0, 10, "Loan Prediction Report", ln=True, align="C")
+                pdf.ln(4)
+                pdf.set_font("Arial", size=12)
+                pdf.multi_cell(0, 8, f"Prediction Result: {'Approved' if approved else 'Rejected'}")
+                pdf.ln(2)
+                for col_name, val in input_data.iloc[0].items():
+                    pdf.cell(0, 7, f"{col_name}: {val}", ln=True)
+                pdf.ln(4)
+                pdf.set_font("Arial", size=9)
+                pdf.cell(0, 6, f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", ln=True)
 
-            y = 730
-            c.drawString(50, y, f"Prediction Result: {result_text}")
-            y -= 18
-            c.drawString(50, y, f"Gender: {gender}")
-            y -= 14
-            c.drawString(50, y, f"Married: {married}")
-            y -= 14
-            c.drawString(50, y, f"Dependents: {dependents}")
-            y -= 14
-            c.drawString(50, y, f"Education: {education}")
-            y -= 14
-            c.drawString(50, y, f"Self Employed: {self_employed}")
-            y -= 14
-            c.drawString(50, y, f"Applicant Income: {applicant_income}")
-            y -= 14
-            c.drawString(50, y, f"Coapplicant Income: {coapplicant_income}")
-            y -= 14
-            c.drawString(50, y, f"Loan Amount: {loan_amount}")
-            y -= 14
-            c.drawString(50, y, f"Loan Term (months): {loan_term}")
-            y -= 14
-            c.drawString(50, y, f"Credit History: {credit_history}")
-            y -= 14
-            c.drawString(50, y, f"Property Area: {property_area}")
-            y -= 28
+                pdf_buf = BytesIO()
+                pdf.output(pdf_buf)
+                pdf_buf.seek(0)
 
-            # Add timestamp and footer
-            c.setFont("Helvetica-Oblique", 9)
-            c.drawString(50, y, f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            c.save()
-            buffer.seek(0)
+                st.download_button(
+                    label="📄 Download Result as PDF",
+                    data=pdf_buf,
+                    file_name=f"loan_prediction_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
+                    mime="application/pdf"
+                )
 
-            st.download_button(
-                label="📄 Download Result as PDF",
-                data=buffer,
-                file_name=f"loan_prediction_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
-                mime="application/pdf"
-            )
-
-# Small note / instructions
+# ------------------ small tip note ------------------
 st.markdown(
     """
-    <div style="margin-top:10px; color: white; opacity:0.9">
-    *Tip:* Use **Show visualization** to preview the financial chart before downloading the input data or generating the PDF.
+    <div style="margin-top:12px; color: rgba(255,255,255,0.9)">
+    *Tip:* Toggle **Show visualization** to preview the chart. The entered data preview appears after the visual for a cleaner flow.
     </div>
     """,
     unsafe_allow_html=True,
