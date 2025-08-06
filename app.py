@@ -1,16 +1,37 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import joblib  # or pickle
+import joblib
+import matplotlib.pyplot as plt
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 
-# Load the trained model
-model = joblib.load('model.pkl')  # make sure this is the correct filename
-scaler=joblib.load('scaler.pkl')
+# 🎨 Inject custom CSS for background image
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background-image: url("https://img.freepik.com/premium-vector/loan-logo-design-icon-vector_999827-1718.jpg?w=2000"); /* You can replace this with any direct image link */
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-position: center;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# Load the trained model and scaler
+model = joblib.load('model.pkl')  
+scaler = joblib.load('scaler.pkl')
+
 # Title
-st.title("Loan Prediction App")
+st.title("🏦 Loan Prediction App")
 
 # Sidebar inputs
-st.sidebar.header("Applicant Information")
+st.sidebar.header("📝 Applicant Information")
 
 gender = st.sidebar.selectbox("Gender", ["Male", "Female"])
 married = st.sidebar.selectbox("Married", ["Yes", "No"])
@@ -39,9 +60,7 @@ input_data = pd.DataFrame({
     'Property_Area': [property_area]
 })
 
-# Preprocessing should match the training preprocessing
-# You must apply the same label encoding / one-hot encoding etc. here
-# Example:
+# Preprocessing function
 def preprocess(df):
     df = df.copy()
     df['Gender'] = df['Gender'].map({'Male': 1, 'Female': 0})
@@ -54,11 +73,63 @@ def preprocess(df):
 
 input_processed = preprocess(input_data)
 
-# Predict button
-if st.button("Predict Loan Approval"):
-    prediction = model.predict(input_processed)[0]
-    if prediction == 'Y':
-        st.success("✅ Loan will be Approved!")
-    else:
+# Visualize user financial inputs
+st.subheader("📊 Applicant Financial Summary")
 
-        st.error("❌ Loan will be Rejected.")
+# Create bar chart
+fig, ax = plt.subplots()
+bars = ax.bar(
+    ['Applicant Income', 'Coapplicant Income', 'Loan Amount'],
+    [applicant_income, coapplicant_income, loan_amount],
+    color=['skyblue', 'orange', 'green']
+)
+
+# Add value labels
+for bar in bars:
+    yval = bar.get_height()
+    ax.text(bar.get_x() + bar.get_width()/2.0, yval + 10, f'{yval:.0f}', ha='center', va='bottom')
+
+ax.set_ylabel("Amount")
+ax.set_title("Income & Loan Overview")
+
+st.pyplot(fig)
+
+# Predict button
+if st.button("🔍 Predict Loan Approval"):
+    prediction = model.predict(input_processed)[0]
+    result_text = "✅ Loan will be Approved!" if prediction == 'Y' else "❌ Loan will be Rejected."
+    
+    if prediction == 'Y':
+        st.success(result_text)
+    else:
+        st.error(result_text)
+
+    # ----- PDF generation -----
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    c.setFont("Helvetica", 12)
+    c.drawString(50, 750, "Loan Prediction Report")
+    c.line(50, 745, 550, 745)
+    
+    c.drawString(50, 720, f"Prediction Result: {result_text}")
+    c.drawString(50, 700, f"Gender: {gender}")
+    c.drawString(50, 685, f"Married: {married}")
+    c.drawString(50, 670, f"Dependents: {dependents}")
+    c.drawString(50, 655, f"Education: {education}")
+    c.drawString(50, 640, f"Self Employed: {self_employed}")
+    c.drawString(50, 625, f"Applicant Income: {applicant_income}")
+    c.drawString(50, 610, f"Coapplicant Income: {coapplicant_income}")
+    c.drawString(50, 595, f"Loan Amount: {loan_amount}")
+    c.drawString(50, 580, f"Loan Term: {loan_term}")
+    c.drawString(50, 565, f"Credit History: {credit_history}")
+    c.drawString(50, 550, f"Property Area: {property_area}")
+    
+    c.save()
+    buffer.seek(0)
+
+    st.download_button(
+        label="📄 Download Result as PDF",
+        data=buffer,
+        file_name="loan_prediction_report.pdf",
+        mime="application/pdf"
+    )
