@@ -5,6 +5,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Load
+df = pd.read_csv("loan.csv")
+
 model=joblib.load("model.pkl")
 scaler=joblib.load("scaler.pkl")
 
@@ -48,4 +50,5 @@ area = st.selectbox("Select Area", df["Property_Area"].unique())
 filtered_df = df[df["Property_Area"] == area]
 st.write(f"Showing {len(filtered_df)} records from '{area}' area:")
 st.dataframe(filtered_df)
+
 
