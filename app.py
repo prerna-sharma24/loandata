@@ -15,7 +15,7 @@ st.markdown(
     """
     <style>
     .stApp {
-        background-image: url("https://static.vecteezy.com/system/resources/previews/051/864/870/non_2x/front-of-payment-card-credit-card-bank-card-on-a-white-background-free-vector.jpg");
+        background-image: url("https://www.vecteezy.com/vector-art/23221109-banking-and-finance-concept-digital-connect-system-financial-and-banking-technology-with-integrated-circles-glowing-line-icons-and-on-blue-background-vector-design");
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
@@ -212,6 +212,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
 
 
 
