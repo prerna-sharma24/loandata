@@ -15,7 +15,7 @@ st.markdown(
     """
     <style>
     .stApp {
-        background-image: url("https://www.vecteezy.com/vector-art/23221109-banking-and-finance-concept-digital-connect-system-financial-and-banking-technology-with-integrated-circles-glowing-line-icons-and-on-blue-background-vector-design");
+        background-image: url("https://images.pexels.com/photos/259209/pexels-photo-259209.jpeg");
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
@@ -212,6 +212,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
 
 
 
