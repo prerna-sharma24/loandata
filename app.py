@@ -15,7 +15,7 @@ st.markdown(
     """
     <style>
     .stApp {
-        background-image: url("https://images.pexels.com/photos/259209/pexels-photo-259209.jpeg");
+        background-image: url("https://images.pexels.com/photos/6266674/pexels-photo-6266674.jpeg");
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
@@ -212,6 +212,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
 
 
 
