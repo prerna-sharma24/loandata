@@ -15,7 +15,7 @@ st.markdown(
     """
     <style>
     .stApp {
-        background-image: url("https://images.pexels.com/photos/956999/milky-way-starry-sky-night-sky-star-956999.jpeg");
+        background-image: url("https://static.vecteezy.com/system/resources/previews/051/864/870/non_2x/front-of-payment-card-credit-card-bank-card-on-a-white-background-free-vector.jpg");
         background-size: cover;
         background-repeat: no-repeat;
         background-attachment: fixed;
@@ -212,6 +212,7 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
 
 
 
